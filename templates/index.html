@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MindScan — Multimodal Depression Detection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #080c10;
+            --surface: #0d1117;
+            --card: #111820;
+            --border: #1e2d3d;
+            --accent: #00d4ff;
+            --accent2: #00ff9d;
+            --danger: #ff4d6d;
+            --warn: #ffb347;
+            --text: #c9d8e8;
+            --muted: #4a6278;
+            --font-head: 'Syne', sans-serif;
+            --font-mono: 'DM Mono', monospace;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font-mono);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Grid background ── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-image:
+                linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+
+        /* ── Glow orb ── */
+        body::after {
+            content: '';
+            position: fixed;
+            top: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 500px;
+            background: radial-gradient(ellipse, rgba(0, 212, 255, 0.07) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 24px 80px;
+        }
+
+        /* ── Header ── */
+        header {
+            padding: 48px 0 40px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 48px;
+        }
+
+        .logo-block {}
+
+        .logo-tag {
+            font-size: 11px;
+            letter-spacing: 3px;
+            color: var(--accent);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            font-family: var(--font-head);
+            font-size: clamp(28px, 4vw, 42px);
+            font-weight: 800;
+            line-height: 1.1;
+            color: #fff;
+            letter-spacing: -1px;
+        }
+
+        h1 span {
+            color: var(--accent);
+        }
+
+        .subtitle {
+            margin-top: 10px;
+            font-size: 13px;
+            color: var(--muted);
+            max-width: 420px;
+            line-height: 1.7;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 212, 255, 0.06);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 100px;
+            padding: 8px 16px;
+            font-size: 12px;
+            color: var(--accent);
+            cursor: pointer;
+            transition: background 0.2s;
+            white-space: nowrap;
+            height: fit-content;
+            margin-top: 8px;
+        }
+
+        .status-pill:hover {
+            background: rgba(0, 212, 255, 0.12);
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--accent2);
+            box-shadow: 0 0 8px var(--accent2);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        /* ── Tabs ── */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 32px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--muted);
+            border-radius: 9px;
+            transition: all 0.2s;
+            letter-spacing: 0.5px;
+        }
+
+        .tab.active {
+            background: var(--card);
+            color: var(--accent);
+            box-shadow: 0 0 0 1px var(--border);
+        }
+
+        .tab:hover:not(.active) {
+            color: var(--text);
+        }
+
+        /* ── Cards ── */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            margin-bottom: 20px;
+            transition: border-color 0.2s;
+        }
+
+        .card:hover {
+            border-color: rgba(0, 212, 255, 0.2);
+        }
+
+        .card-label {
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 16px;
+        }
+
+        /* ── Upload zones ── */
+        .upload-zone {
+            border: 1.5px dashed var(--border);
+            border-radius: 12px;
+            padding: 36px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: var(--accent);
+            background: rgba(0, 212, 255, 0.04);
+        }
+
+        .upload-zone.has-file {
+            border-color: var(--accent2);
+            background: rgba(0, 255, 157, 0.04);
+        }
+
+        .upload-zone input[type=file] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .upload-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .upload-title {
+            font-family: var(--font-head);
+            font-size: 15px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+
+        .upload-hint {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .file-name {
+            font-size: 13px;
+            color: var(--accent2);
+            margin-top: 10px;
+            font-weight: 500;
+        }
+
+        /* ── Two-col upload ── */
+        .upload-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 600px) {
+            .upload-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ── Record / Camera trigger buttons ── */
+        .record-controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 14px;
+        }
+
+        .btn-secondary {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-secondary.recording {
+            border-color: var(--danger);
+            color: var(--danger);
+            background: rgba(255, 77, 109, 0.08);
+        }
+
+        .rec-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--danger);
+            box-shadow: 0 0 6px var(--danger);
+            animation: pulse 1s infinite;
+            display: none;
+        }
+
+        .btn-secondary.recording .rec-dot {
+            display: inline-block;
+        }
+
+        .rec-timer {
+            display: none;
+            text-align: center;
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 8px;
+            letter-spacing: 1px;
+        }
+
+        .rec-timer.active {
+            display: block;
+        }
+
+        /* ── Camera panel ── */
+        .camera-panel {
+            display: none;
+            margin-top: 16px;
+        }
+
+        .camera-panel.active {
+            display: block;
+        }
+
+        .camera-panel video {
+            width: 100%;
+            max-height: 320px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: #000;
+            transform: scaleX(-1);
+            /* mirror, feels natural for a face cam */
+        }
+
+        .camera-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+            justify-content: center;
+        }
+
+        /* ── Analyse button ── */
+        .btn-analyse {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--accent) 0%, #0099bb 100%);
+            border: none;
+            border-radius: 12px;
+            font-family: var(--font-head);
+            font-size: 15px;
+            font-weight: 700;
+            color: #000;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .btn-analyse:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 30px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-analyse:active {
+            transform: translateY(0);
+        }
+
+        .btn-analyse:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ── Loading bar ── */
+        .loading-bar {
+            height: 3px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 16px 0;
+            display: none;
+        }
+
+        .loading-bar.active {
+            display: block;
+        }
+
+        .loading-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            animation: loading 1.5s ease-in-out infinite;
+            width: 40%;
+        }
+
+        @keyframes loading {
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(350%);
+            }
+        }
+
+        /* ── Results panel ── */
+        #results {
+            display: none;
+        }
+
+        #results.visible {
+            display: block;
+            animation: fadeUp 0.4s ease;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .result-badge {
+            padding: 6px 16px;
+            border-radius: 100px;
+            font-family: var(--font-head);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .result-badge.depressed {
+            background: rgba(255, 77, 109, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(255, 77, 109, 0.3);
+        }
+
+        .result-badge.non-depressed {
+            background: rgba(0, 255, 157, 0.12);
+            color: var(--accent2);
+            border: 1px solid rgba(0, 255, 157, 0.3);
+        }
+
+        .result-label {
+            font-family: var(--font-head);
+            font-size: 22px;
+            font-weight: 800;
+            color: #fff;
+        }
+
+
+
+        /* ── Metric grid ── */
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 500px) {
+            .metric-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .metric-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .metric-val {
+            font-family: var(--font-head);
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .metric-key {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+            letter-spacing: 1px;
+        }
+
+        /* ── Modality scores ── */
+        .modality-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .mod-box {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .mod-icon {
+            font-size: 20px;
+            margin-bottom: 6px;
+        }
+
+        .mod-score {
+            font-family: var(--font-head);
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .mod-label {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        /* ── Error box ── */
+        .error-box {
+            background: rgba(255, 77, 109, 0.08);
+            border: 1px solid rgba(255, 77, 109, 0.3);
+            border-radius: 10px;
+            padding: 16px;
+            color: var(--danger);
+            font-size: 13px;
+            display: none;
+        }
+
+        .error-box.visible {
+            display: block;
+        }
+
+        /* ── Disclaimer ── */
+        .disclaimer {
+            background: rgba(255, 179, 71, 0.06);
+            border: 1px solid rgba(255, 179, 71, 0.2);
+            border-radius: 10px;
+            padding: 14px 16px;
+            font-size: 12px;
+            color: var(--warn);
+            line-height: 1.6;
+            margin-top: 24px;
+        }
+
+        .disclaimer strong {
+            color: #ffcc80;
+        }
+
+        /* ── Tab panels ── */
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* ── Section sep ── */
+        .sep {
+            height: 1px;
+            background: var(--border);
+            margin: 28px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrapper">
+
+        <header>
+            <div class="logo-block">
+                <div class="logo-tag">v1.0 &nbsp;/&nbsp; Research Tool</div>
+                <h1>Mind<span>Scan</span></h1>
+                <p class="subtitle">Multimodal depression screening via audio voice analysis and facial image assessment
+                    using ensemble ML.</p>
+            </div>
+            <button class="status-pill" onclick="checkHealth()">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Checking API...</span>
+            </button>
+        </header>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('audio')">Audio Only</button>
+            <button class="tab" onclick="switchTab('image')">Image Only</button>
+            <button class="tab" onclick="switchTab('fusion')">Fusion (Both)</button>
+        </div>
+
+        <!-- ── AUDIO TAB ── -->
+        <div class="tab-panel active" id="tab-audio">
+            <div class="card">
+                <div class="card-label">Voice Sample Upload</div>
+                <div class="upload-zone" id="audioZone" ondragover="onDrag(event,'audioZone')"
+                    ondragleave="offDrag('audioZone')" ondrop="onDrop(event,'audioFile','audioZone')">
+                    <input type="file" id="audioFile" accept=".wav,.mp3,.flac,.ogg,.mp4,.m4a,.webm,.aac"
+                        onchange="onFileChange('audioFile','audioZone','audioFileName')">
+                    <span class="upload-icon">🎙️</span>
+                    <div class="upload-title">Drop audio file here</div>
+                    <div class="upload-hint">Supports WAV, MP3, MP4, FLAC, OGG, M4A &nbsp;·&nbsp; max 50MB</div>
+                    <div class="file-name" id="audioFileName"></div>
+                </div>
+                <div class="record-controls">
+                    <button type="button" class="btn-secondary" id="audioRecBtn"
+                        onclick="toggleAudioRecording('audioFile','audioZone','audioFileName','audioRecBtn','audioRecTimer')">
+                        <span class="rec-dot"></span><span>🎤 Record Voice</span>
+                    </button>
+                </div>
+                <div class="rec-timer" id="audioRecTimer">00:00</div>
+            </div>
+            <button class="btn-analyse" id="btnAudio" onclick="predict('audio')">Analyse Voice</button>
+        </div>
+
+        <!-- ── IMAGE TAB ── -->
+        <div class="tab-panel" id="tab-image">
+            <div class="card">
+                <div class="card-label">Facial Image Upload</div>
+                <div class="upload-zone" id="imageZone" ondragover="onDrag(event,'imageZone')"
+                    ondragleave="offDrag('imageZone')" ondrop="onDrop(event,'imageFile','imageZone')">
+                    <input type="file" id="imageFile" accept=".jpg,.jpeg,.png,.bmp,.webp"
+                        onchange="onFileChange('imageFile','imageZone','imageFileName')">
+                    <span class="upload-icon">🖼️</span>
+                    <div class="upload-title">Drop facial image here</div>
+                    <div class="upload-hint">Supports JPG, PNG, BMP, WEBP &nbsp;·&nbsp; max 50MB</div>
+                    <div class="file-name" id="imageFileName"></div>
+                </div>
+                <div class="record-controls">
+                    <button type="button" class="btn-secondary" onclick="openCamera('imageCameraPanel','imageVideo')">📷
+                        Use Camera</button>
+                </div>
+                <div class="camera-panel" id="imageCameraPanel">
+                    <video id="imageVideo" autoplay playsinline muted></video>
+                    <div class="camera-actions">
+                        <button type="button" class="btn-secondary"
+                            onclick="capturePhoto('imageFile','imageZone','imageFileName','imageCameraPanel','imageVideo')">✓
+                            Capture</button>
+                        <button type="button" class="btn-secondary"
+                            onclick="closeCamera('imageCameraPanel','imageVideo')">Cancel</button>
+                    </div>
+                </div>
+            </div>
+            <button class="btn-analyse" id="btnImage" onclick="predict('image')">Analyse Image</button>
+        </div>
+
+        <!-- ── FUSION TAB ── -->
+        <div class="tab-panel" id="tab-fusion">
+            <div class="card">
+                <div class="card-label">Upload Both Modalities</div>
+                <div class="upload-grid">
+                    <div>
+                        <div class="upload-zone" id="fusAudioZone" ondragover="onDrag(event,'fusAudioZone')"
+                            ondragleave="offDrag('fusAudioZone')" ondrop="onDrop(event,'fusAudio','fusAudioZone')">
+                            <input type="file" id="fusAudio" accept=".wav,.mp3,.flac,.ogg,.mp4,.m4a,.webm,.aac"
+                                onchange="onFileChange('fusAudio','fusAudioZone','fusAudioName')">
+                            <span class="upload-icon">🎙️</span>
+                            <div class="upload-title">Audio file</div>
+                            <div class="upload-hint">WAV / MP3 / MP4 / M4A</div>
+                            <div class="file-name" id="fusAudioName"></div>
+                        </div>
+                        <div class="record-controls">
+                            <button type="button" class="btn-secondary" id="fusAudioRecBtn"
+                                onclick="toggleAudioRecording('fusAudio','fusAudioZone','fusAudioName','fusAudioRecBtn','fusAudioRecTimer')">
+                                <span class="rec-dot"></span><span>🎤 Record</span>
+                            </button>
+                        </div>
+                        <div class="rec-timer" id="fusAudioRecTimer">00:00</div>
+                    </div>
+                    <div>
+                        <div class="upload-zone" id="fusImageZone" ondragover="onDrag(event,'fusImageZone')"
+                            ondragleave="offDrag('fusImageZone')" ondrop="onDrop(event,'fusImage','fusImageZone')">
+                            <input type="file" id="fusImage" accept=".jpg,.jpeg,.png,.bmp,.webp"
+                                onchange="onFileChange('fusImage','fusImageZone','fusImageName')">
+                            <span class="upload-icon">🖼️</span>
+                            <div class="upload-title">Facial image</div>
+                            <div class="upload-hint">JPG / PNG / WEBP</div>
+                            <div class="file-name" id="fusImageName"></div>
+                        </div>
+                        <div class="record-controls">
+                            <button type="button" class="btn-secondary"
+                                onclick="openCamera('fusImageCameraPanel','fusImageVideo')">📷 Camera</button>
+                        </div>
+                        <div class="camera-panel" id="fusImageCameraPanel">
+                            <video id="fusImageVideo" autoplay playsinline muted></video>
+                            <div class="camera-actions">
+                                <button type="button" class="btn-secondary"
+                                    onclick="capturePhoto('fusImage','fusImageZone','fusImageName','fusImageCameraPanel','fusImageVideo')">✓
+                                    Capture</button>
+                                <button type="button" class="btn-secondary"
+                                    onclick="closeCamera('fusImageCameraPanel','fusImageVideo')">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button class="btn-analyse" id="btnFusion" onclick="predict('fusion')">Run Fusion Analysis</button>
+        </div>
+
+        <!-- Loading bar -->
+        <div class="loading-bar" id="loadingBar">
+            <div class="loading-fill"></div>
+        </div>
+
+        <!-- Error -->
+        <div class="error-box" id="errorBox"></div>
+
+        <!-- Results -->
+        <div id="results">
+            <div class="sep"></div>
+            <div class="card">
+                <div class="card-label">Analysis Result</div>
+
+                <div class="result-header">
+                    <div class="result-badge" id="resultBadge"></div>
+                    <div class="result-label" id="resultLabel"></div>
+                </div>
+
+                <!-- Confidence metrics -->
+                <div class="metric-grid">
+                    <div class="metric-box">
+                        <div class="metric-val" id="metConfidence">—</div>
+                        <div class="metric-key">CONFIDENCE</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-val" id="metPrediction">—</div>
+                        <div class="metric-key">PREDICTION</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-val" id="metModality">—</div>
+                        <div class="metric-key">MODALITY</div>
+                    </div>
+                </div>
+
+                <!-- Fusion modality breakdown (shown only for fusion) -->
+                <div id="fusionBreakdown" style="display:none">
+                    <div class="sep"></div>
+                    <div class="card-label">Modality Breakdown</div>
+                    <div class="modality-row">
+                        <div class="mod-box">
+                            <div class="mod-icon">🎙️</div>
+                            <div class="mod-score" id="modAudioScore" style="color:var(--accent)">—</div>
+                            <div class="mod-label">Audio Score</div>
+                        </div>
+                        <div class="mod-box">
+                            <div class="mod-icon">🖼️</div>
+                            <div class="mod-score" id="modImageScore" style="color:var(--accent)">—</div>
+                            <div class="mod-label">Image Score</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="disclaimer">
+                <strong>Clinical Disclaimer:</strong> This tool is a research prototype and is NOT a medical diagnosis.
+                Results should not replace professional clinical assessment. If you or someone you know may be
+                experiencing depression, please consult a qualified mental health professional.
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Same-origin by default: works at http://127.0.0.1:5000 locally AND
+        // automatically points at whatever domain this page is served from
+        // once deployed (e.g. https://mindscan.onrender.com).
+        const API = window.location.origin;
+        let activeTab = 'audio';
+
+        // ── Tab switching ──────────────────────────────────────────────────────────
+        function switchTab(name) {
+            activeTab = name;
+            document.querySelectorAll('.tab').forEach((t, i) => {
+                t.classList.toggle('active', ['audio', 'image', 'fusion'][i] === name);
+            });
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('tab-' + name).classList.add('active');
+            hideResults();
+        }
+
+        // ── Upload zone helpers ────────────────────────────────────────────────────
+        function onDrag(e, zoneId) {
+            e.preventDefault();
+            document.getElementById(zoneId).classList.add('dragover');
+        }
+        function offDrag(zoneId) {
+            document.getElementById(zoneId).classList.remove('dragover');
+        }
+        function onDrop(e, inputId, zoneId) {
+            e.preventDefault();
+            offDrag(zoneId);
+            const files = e.dataTransfer.files;
+            if (files.length) {
+                const input = document.getElementById(inputId);
+                const dt = new DataTransfer();
+                dt.items.add(files[0]);
+                input.files = dt.files;
+                input.dispatchEvent(new Event('change'));
+            }
+        }
+        function onFileChange(inputId, zoneId, nameId) {
+            const input = document.getElementById(inputId);
+            const zone = document.getElementById(zoneId);
+            const nameEl = document.getElementById(nameId);
+            if (input.files.length) {
+                zone.classList.add('has-file');
+                nameEl.textContent = '✓  ' + input.files[0].name;
+            }
+        }
+
+        // ── Health check ──────────────────────────────────────────────────────────
+        async function checkHealth() {
+            try {
+                const r = await fetch(API + '/health');
+                const d = await r.json();
+                const dot = document.getElementById('statusDot');
+                const text = document.getElementById('statusText');
+                if (d.status === 'ok') {
+                    dot.style.background = 'var(--accent2)';
+                    dot.style.boxShadow = '0 0 8px var(--accent2)';
+                    const loaded = [d.audio_model && 'Audio', d.image_model && 'Image', d.fusion_model && 'Fusion'].filter(Boolean);
+                    text.textContent = loaded.length ? loaded.join(' + ') + ' Ready' : 'API Online';
+                } else { setOffline(); }
+            } catch { setOffline(); }
+        }
+        function setOffline() {
+            const dot = document.getElementById('statusDot');
+            dot.style.background = 'var(--danger)';
+            dot.style.boxShadow = '0 0 8px var(--danger)';
+            document.getElementById('statusText').textContent = 'API Offline';
+        }
+        checkHealth();
+
+        // ── Mic recording ─────────────────────────────────────────────────────────
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let recTimerInterval = null;
+        let recSeconds = 0;
+        let activeMicStream = null;
+
+        async function toggleAudioRecording(inputId, zoneId, nameId, btnId, timerId) {
+            const btn = document.getElementById(btnId);
+
+            // If currently recording -> stop
+            if (btn.classList.contains('recording')) {
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+                return;
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showError('Microphone recording is not supported in this browser.');
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+                activeMicStream = stream;
+                recordedChunks = [];
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.ondataavailable = (ev) => {
+                    if (ev.data && ev.data.size > 0) recordedChunks.push(ev.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    const file = new File([blob], 'recording-' + Date.now() + '.webm', { type: 'audio/webm' });
+                    const input = document.getElementById(inputId);
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+                    input.files = dt.files;
+                    input.dispatchEvent(new Event('change'));
+
+                    stream.getTracks().forEach(t => t.stop());
+                    activeMicStream = null;
+
+                    clearInterval(recTimerInterval);
+                    btn.classList.remove('recording');
+                    btn.querySelector('span:last-child').textContent = '🎤 Record Voice';
+                    document.getElementById(timerId).classList.remove('active');
+                };
+
+                mediaRecorder.start();
+                btn.classList.add('recording');
+                btn.querySelector('span:last-child').textContent = 'Stop Recording';
+
+                recSeconds = 0;
+                const timerEl = document.getElementById(timerId);
+                timerEl.classList.add('active');
+                timerEl.textContent = '00:00';
+                recTimerInterval = setInterval(() => {
+                    recSeconds++;
+                    const m = String(Math.floor(recSeconds / 60)).padStart(2, '0');
+                    const s = String(recSeconds % 60).padStart(2, '0');
+                    timerEl.textContent = m + ':' + s;
+                }, 1000);
+
+            } catch (err) {
+                showError('Microphone access was denied or is unavailable.');
+            }
+        }
+
+        // ── Camera capture ────────────────────────────────────────────────────────
+        async function openCamera(panelId, videoId) {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showError('Camera access is not supported in this browser.');
+                return;
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                const video = document.getElementById(videoId);
+                video.srcObject = stream;
+                video.dataset.streamActive = 'true';
+                document.getElementById(panelId).classList.add('active');
+            } catch (err) {
+                showError('Camera access was denied or is unavailable.');
+            }
+        }
+
+        function capturePhoto(inputId, zoneId, nameId, panelId, videoId) {
+            const video = document.getElementById(videoId);
+            if (!video.srcObject) return;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            // Un-mirror when saving so the captured file looks natural, not flipped
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob((blob) => {
+                const file = new File([blob], 'capture-' + Date.now() + '.jpg', { type: 'image/jpeg' });
+                const input = document.getElementById(inputId);
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                input.files = dt.files;
+                input.dispatchEvent(new Event('change'));
+                closeCamera(panelId, videoId);
+            }, 'image/jpeg', 0.92);
+        }
+
+        function closeCamera(panelId, videoId) {
+            const video = document.getElementById(videoId);
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(t => t.stop());
+                video.srcObject = null;
+            }
+            document.getElementById(panelId).classList.remove('active');
+        }
+
+        // ── Predict ───────────────────────────────────────────────────────────────
+        async function predict(mode) {
+            hideResults(); showError('');
+
+            const fd = new FormData();
+            let url;
+
+            if (mode === 'audio') {
+                const f = document.getElementById('audioFile').files[0];
+                if (!f) { showError('Please upload or record an audio file first.'); return; }
+                fd.append('file', f);
+                url = API + '/predict/audio';
+            } else if (mode === 'image') {
+                const f = document.getElementById('imageFile').files[0];
+                if (!f) { showError('Please upload or capture an image first.'); return; }
+                fd.append('file', f);
+                url = API + '/predict/image';
+            } else {
+                const a = document.getElementById('fusAudio').files[0];
+                const i = document.getElementById('fusImage').files[0];
+                if (!a || !i) { showError('Please provide both audio and image files.'); return; }
+                fd.append('audio', a);
+                fd.append('image', i);
+                url = API + '/predict/fusion';
+            }
+
+            setLoading(true);
+            try {
+                const resp = await fetch(url, { method: 'POST', body: fd });
+                const data = await resp.json();
+                if (!resp.ok) { showError(data.error || 'Server error ' + resp.status); return; }
+                showResults(data, mode);
+            } catch (e) {
+                showError('Could not reach API. Make sure the Flask server is running:\n  python app.py');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // ── Render results ────────────────────────────────────────────────────────
+        function showResults(d, mode) {
+            const isDepressed = d.prediction === 1;
+
+            const badge = document.getElementById('resultBadge');
+            badge.textContent = isDepressed ? 'Depressed' : 'Non-Depressed';
+            badge.className = 'result-badge ' + (isDepressed ? 'depressed' : 'non-depressed');
+
+            document.getElementById('resultLabel').textContent =
+                isDepressed ? 'Signs of depression detected' : 'No significant depression indicators';
+
+            document.getElementById('metConfidence').textContent = (d.confidence * 100).toFixed(1) + '%';
+            document.getElementById('metPrediction').textContent = d.label;
+            document.getElementById('metModality').textContent = mode.toUpperCase();
+
+            // Fusion breakdown
+            const fb = document.getElementById('fusionBreakdown');
+            if (mode === 'fusion' && d.modality_scores) {
+                fb.style.display = 'block';
+                document.getElementById('modAudioScore').textContent = (d.modality_scores.audio * 100).toFixed(1) + '%';
+                document.getElementById('modImageScore').textContent = (d.modality_scores.image * 100).toFixed(1) + '%';
+            } else {
+                fb.style.display = 'none';
+            }
+
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('results').classList.add('visible');
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function hideResults() {
+            const r = document.getElementById('results');
+            r.style.display = 'none';
+            r.classList.remove('visible');
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('errorBox');
+            if (msg) { el.textContent = msg; el.classList.add('visible'); }
+            else { el.classList.remove('visible'); }
+        }
+
+        function setLoading(on) {
+            document.getElementById('loadingBar').classList.toggle('active', on);
+            ['btnAudio', 'btnImage', 'btnFusion'].forEach(id => {
+                const b = document.getElementById(id);
+                if (b) b.disabled = on;
+            });
+        }
+    </script>
+</body>
+
+</html>
