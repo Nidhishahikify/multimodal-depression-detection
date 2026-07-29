@@ -4,6 +4,12 @@ scripts/extract_image_features.py
 Extracts ~2140 features from each image.
 Runs on TRAIN and TEST folders separately.
 Saves two CSVs: train_image.csv and test_image.csv
+
+NOTE: Face detection is now MANDATORY. If no face is found in an image
+(e.g. a screenshot, blank/black frame, or non-face photo), that image is
+skipped entirely — it is NOT analyzed as depressed/non-depressed, and no
+row is written for it. This prevents non-face content from polluting the
+feature CSVs.
 """
 import sys
 import logging
@@ -40,18 +46,21 @@ _FACE_CASCADE = cv2.CascadeClassifier(
 )
 
 
-def _crop_to_face(img: np.ndarray) -> np.ndarray:
+def _crop_to_face(img: np.ndarray):
     """
     Detects the largest face in the image and crops to it (with a small margin).
-    Falls back to the original full image if no face is detected, so this never
-    breaks on already-cropped training photos or unusual angles.
+
+    Returns the cropped face image, or None if no face is detected.
+    Face detection is REQUIRED — images with no detectable face (screenshots,
+    blank frames, non-face photos, etc.) must NOT be analyzed, so callers
+    should skip the image entirely when this returns None.
     """
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     faces = _FACE_CASCADE.detectMultiScale(
         gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60)
     )
     if len(faces) == 0:
-        return img
+        return None
 
     # Largest detected face by area (in case of multiple faces in frame)
     x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
@@ -72,14 +81,21 @@ def extract_features(path: Path):
       HSV color histogram    96 values  (color)
       Region stats           24 values  (6 zones x 4 stats)
       TOTAL               ~2140 values
+
+    Returns None (and logs why) if the image can't be read OR if no face
+    is detected in it. No-face images are intentionally NOT analyzed.
     """
     try:
         img = cv2.imread(str(path))
         if img is None:
             raise ValueError("Cannot read image")
 
-        img  = _crop_to_face(img)
-        img  = cv2.resize(img, IMAGE_CONFIG["target_size"])
+        face = _crop_to_face(img)
+        if face is None:
+            log.info(f"No face detected, skipping [{path.name}]")
+            return None
+
+        img  = cv2.resize(face, IMAGE_CONFIG["target_size"])
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         # HOG - shape and edge structure
@@ -159,7 +175,7 @@ def extract_split(dep_dir: Path, nondep_dir: Path,
                 ok += 1
             else:
                 skip += 1
-        print(f"    -> OK: {ok}  Skipped: {skip}")
+        print(f"    -> OK: {ok}  Skipped (unreadable or no face detected): {skip}")
 
     if not rows:
         print(f"  [ERROR] No features extracted for {split_name}!")

@@ -1,15 +1,11 @@
-"""
-app.py - Flask server + UI
-
-Run with:
-    py -3.11 app.py
-
-Then open:
-    http://127.0.0.1:5000
-"""
+# ...existing code...
 import json
 import os
-os.environ["PATH"] += r";C:\Users\ASUS\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.2-full_build\bin"
+import sys
+# Only add ffmpeg to PATH on Windows development environment
+# Render (Linux) has ffmpeg available in the system PATH
+if sys.platform == "win32" and os.path.exists(r"C:\Users\ASUS\AppData\Local\Microsoft\WinGet\Packages"):
+    os.environ["PATH"] += r";C:\Users\ASUS\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.2-full_build\bin"
 import tempfile
 import logging
 from pathlib import Path
@@ -30,7 +26,11 @@ from scripts.extract_image_features import extract_features as extract_image
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
-    handlers=[logging.FileHandler(LOGS_DIR / "app.log", encoding="utf-8")],
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(LOGS_DIR / "app.log", encoding="utf-8"),
+        logging.StreamHandler()  # Also log to console for Render logs
+    ],
 )
 log = logging.getLogger(__name__)
 
@@ -50,10 +50,31 @@ def load_model(path: Path):
             log.warning(f"Could not load {path.name}: {e}")
     return None
 
-AUDIO_MODEL   = load_model(MODELS_DIR / "model_audio.pkl")
-IMAGE_MODEL   = load_model(MODELS_DIR / "model_image.pkl")
-FUSION_BUNDLE = load_model(MODELS_DIR / "model_fusion.pkl")
+# ...existing code...
+# Replace eager global loads with lazy cached loaders to avoid heavy imports at module import time
+_AUDIO_MODEL = None
+_IMAGE_MODEL = None
+_FUSION_BUNDLE = None
 
+def get_audio_model():
+    global _AUDIO_MODEL
+    if _AUDIO_MODEL is None:
+        _AUDIO_MODEL = load_model(MODELS_DIR / "model_audio.pkl")
+    return _AUDIO_MODEL
+
+def get_image_model():
+    global _IMAGE_MODEL
+    if _IMAGE_MODEL is None:
+        _IMAGE_MODEL = load_model(MODELS_DIR / "model_image.pkl")
+    return _IMAGE_MODEL
+
+def get_fusion_bundle():
+    global _FUSION_BUNDLE
+    if _FUSION_BUNDLE is None:
+        _FUSION_BUNDLE = load_model(MODELS_DIR / "model_fusion.pkl")
+    return _FUSION_BUNDLE
+
+# ...existing code...
 ALLOWED_AUDIO = {".wav", ".mp3", ".flac", ".ogg", ".mp4", ".m4a", ".webm", ".aac"}
 
 def make_prediction(model, features: np.ndarray) -> dict:
@@ -82,10 +103,13 @@ def index():
 @app.get("/health")
 def health():
     return jsonify({
-        "status"       : "ok",
-        "audio_model"  : AUDIO_MODEL   is not None,
-        "image_model"  : IMAGE_MODEL   is not None,
-        "fusion_model" : FUSION_BUNDLE is not None,
+        "status"            : "ok",
+        "audio_model_file"  : (MODELS_DIR / "model_audio.pkl").exists(),
+        "image_model_file"  : (MODELS_DIR / "model_image.pkl").exists(),
+        "fusion_model_file" : (MODELS_DIR / "model_fusion.pkl").exists(),
+        "audio_model_loaded": _AUDIO_MODEL is not None,
+        "image_model_loaded": _IMAGE_MODEL is not None,
+        "fusion_model_loaded": _FUSION_BUNDLE is not None,
     })
 
 @app.get("/metrics")
@@ -102,7 +126,8 @@ def metrics():
 
 @app.post("/predict/audio")
 def predict_audio():
-    if AUDIO_MODEL is None:
+    model = get_audio_model()
+    if model is None:
         return jsonify({"error": "Audio model not loaded. Run main.py first."}), 503
     if "file" not in request.files:
         return jsonify({"error": "No file provided. Use key: 'file'"}), 400
@@ -118,13 +143,14 @@ def predict_audio():
         feat = extract_audio(tmp)
         if feat is None:
             return jsonify({"error": "Could not extract features. Install ffmpeg for mp4/m4a support."}), 422
-        return jsonify(make_prediction(AUDIO_MODEL, feat))
+        return jsonify(make_prediction(model, feat))
     finally:
         tmp.unlink(missing_ok=True)
 
 @app.post("/predict/image")
 def predict_image():
-    if IMAGE_MODEL is None:
+    model = get_image_model()
+    if model is None:
         return jsonify({"error": "Image model not loaded. Run main.py first."}), 503
     if "file" not in request.files:
         return jsonify({"error": "No file provided. Use key: 'file'"}), 400
@@ -139,20 +165,21 @@ def predict_image():
         feat = extract_image(tmp)
         if feat is None:
             return jsonify({"error": "Could not extract features from image"}), 422
-        return jsonify(make_prediction(IMAGE_MODEL, feat))
+        return jsonify(make_prediction(model, feat))
     finally:
         tmp.unlink(missing_ok=True)
 
 @app.post("/predict/fusion")
 def predict_fusion():
-    if FUSION_BUNDLE is None:
+    bundle = get_fusion_bundle()
+    if bundle is None:
         return jsonify({"error": "Fusion model not loaded. Run main.py first."}), 503
     if "audio" not in request.files or "image" not in request.files:
         return jsonify({"error": "Provide both 'audio' and 'image' files"}), 400
 
-    a_pipe  = FUSION_BUNDLE["audio"]
-    i_pipe  = FUSION_BUNDLE["image"]
-    weights = FUSION_BUNDLE["weights"]
+    a_pipe  = bundle["audio"]
+    i_pipe  = bundle["image"]
+    weights = bundle["weights"]
 
     a_ext = Path(request.files["audio"].filename).suffix.lower()
     i_ext = Path(request.files["image"].filename).suffix.lower()
@@ -191,9 +218,9 @@ if __name__ == "__main__":
     print("=" * 50)
     print("  MindScan - Depression Detection")
     print(f"  http://127.0.0.1:{FLASK_CONFIG['port']}")
-    print(f"  Audio model  : {'LOADED' if AUDIO_MODEL  else 'NOT FOUND - run main.py'}")
-    print(f"  Image model  : {'LOADED' if IMAGE_MODEL  else 'NOT FOUND - run main.py'}")
-    print(f"  Fusion model : {'LOADED' if FUSION_BUNDLE else 'NOT FOUND - run main.py'}")
+    print(f"  Audio model  : {'FOUND' if (MODELS_DIR / 'model_audio.pkl').exists() else 'NOT FOUND - run main.py'}")
+    print(f"  Image model  : {'FOUND' if (MODELS_DIR / 'model_image.pkl').exists() else 'NOT FOUND - run main.py'}")
+    print(f"  Fusion model : {'FOUND' if (MODELS_DIR / 'model_fusion.pkl').exists() else 'NOT FOUND - run main.py'}")
     print("=" * 50)
     app.run(
         host=FLASK_CONFIG["host"],
@@ -201,3 +228,13 @@ if __name__ == "__main__":
         debug=False,
         use_reloader=False,
     )
+else:
+    # When run via gunicorn, log startup info
+    log.info("=" * 50)
+    log.info("MindScan starting via gunicorn")
+    log.info(f"Audio model exists: {(MODELS_DIR / 'model_audio.pkl').exists()}")
+    log.info(f"Image model exists: {(MODELS_DIR / 'model_image.pkl').exists()}")
+    log.info(f"Fusion model exists: {(MODELS_DIR / 'model_fusion.pkl').exists()}")
+    log.info(f"Host: {FLASK_CONFIG['host']}, Port: {FLASK_CONFIG['port']}")
+    log.info("=" * 50)
+# ...existing code...

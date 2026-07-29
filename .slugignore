@@ -1,0 +1,15 @@
+*.md
+.git
+.gitignore
+dataset/
+clean_dataset/test/
+clean_dataset/train/
+features/
+results/
+logs/
+__pycache__/
+*.pyc
+*.pyo
+.vscode/
+.idea/
+*.log
