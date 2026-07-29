@@ -865,7 +865,10 @@
         // ── Health check ──────────────────────────────────────────────────────────
         async function checkHealth() {
             try {
-                const r = await fetch(API + '/health');
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 60000);
+                const r = await fetch(API + '/health', { signal: controller.signal });
+                clearTimeout(timer);
                 const d = await r.json();
                 const dot = document.getElementById('statusDot');
                 const text = document.getElementById('statusText');
@@ -1038,12 +1041,20 @@
 
             setLoading(true);
             try {
-                const resp = await fetch(url, { method: 'POST', body: fd });
+                // 90-second timeout — handles Render free-tier cold start (wake-up takes ~50s)
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 90000);
+                const resp = await fetch(url, { method: 'POST', body: fd, signal: controller.signal });
+                clearTimeout(timer);
                 const data = await resp.json();
                 if (!resp.ok) { showError(data.error || 'Server error ' + resp.status); return; }
                 showResults(data, mode);
             } catch (e) {
-                showError('Could not reach API. Make sure the Flask server is running:\n  python app.py');
+                if (e.name === 'AbortError') {
+                    showError('Request timed out. The server may be waking up — please try again in 10 seconds.');
+                } else {
+                    showError('Could not reach the server. Please check your connection and try again.');
+                }
             } finally {
                 setLoading(false);
             }
