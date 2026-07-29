@@ -1,11 +1,44 @@
 __pycache__/
+**/__pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
 .venv/
 venv/
+env/
+
+# Logs
 logs/
 *.log
+
+# Raw and processed datasets (large, not needed on server)
 dataset/
 clean_dataset/
 features/
 results/
+
+# Gunicorn leftover
 gunicorn
+
+# Environment / secrets
+.env
+.env.*
+*.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Temp files
+*.tmp
+*.temp
