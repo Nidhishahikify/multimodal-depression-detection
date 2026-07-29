@@ -875,7 +875,7 @@
                 if (d.status === 'ok') {
                     dot.style.background = 'var(--accent2)';
                     dot.style.boxShadow = '0 0 8px var(--accent2)';
-                    const loaded = [d.audio_model && 'Audio', d.image_model && 'Image', d.fusion_model && 'Fusion'].filter(Boolean);
+                    const loaded = [d.audio_model_loaded && 'Audio', d.image_model_loaded && 'Image', d.fusion_model_loaded && 'Fusion'].filter(Boolean);
                     text.textContent = loaded.length ? loaded.join(' + ') + ' Ready' : 'API Online';
                 } else { setOffline(); }
             } catch { setOffline(); }
@@ -886,6 +886,10 @@
             dot.style.boxShadow = '0 0 8px var(--danger)';
             document.getElementById('statusText').textContent = 'API Offline';
         }
+        // Show warming up state immediately, then resolve to online/offline
+        document.getElementById('statusText').textContent = 'Warming up...';
+        document.getElementById('statusDot').style.background = 'var(--warn)';
+        document.getElementById('statusDot').style.boxShadow = '0 0 8px var(--warn)';
         checkHealth();
 
         // ── Mic recording ─────────────────────────────────────────────────────────

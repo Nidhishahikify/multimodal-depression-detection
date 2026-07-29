@@ -50,28 +50,20 @@ def load_model(path: Path):
             log.warning(f"Could not load {path.name}: {e}")
     return None
 
-# ...existing code...
-# Replace eager global loads with lazy cached loaders to avoid heavy imports at module import time
-_AUDIO_MODEL = None
-_IMAGE_MODEL = None
-_FUSION_BUNDLE = None
+# Load all models at startup so the first prediction request is fast
+log.info("Loading models into memory...")
+_AUDIO_MODEL   = load_model(MODELS_DIR / "model_audio.pkl")
+_IMAGE_MODEL   = load_model(MODELS_DIR / "model_image.pkl")
+_FUSION_BUNDLE = load_model(MODELS_DIR / "model_fusion.pkl")
+log.info("Models ready.")
 
 def get_audio_model():
-    global _AUDIO_MODEL
-    if _AUDIO_MODEL is None:
-        _AUDIO_MODEL = load_model(MODELS_DIR / "model_audio.pkl")
     return _AUDIO_MODEL
 
 def get_image_model():
-    global _IMAGE_MODEL
-    if _IMAGE_MODEL is None:
-        _IMAGE_MODEL = load_model(MODELS_DIR / "model_image.pkl")
     return _IMAGE_MODEL
 
 def get_fusion_bundle():
-    global _FUSION_BUNDLE
-    if _FUSION_BUNDLE is None:
-        _FUSION_BUNDLE = load_model(MODELS_DIR / "model_fusion.pkl")
     return _FUSION_BUNDLE
 
 # ...existing code...
