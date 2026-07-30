@@ -1052,8 +1052,13 @@
                 clearTimeout(timer);
                 const data = await resp.json();
                 if (!resp.ok) {
-                    const message = data.detail ? `${data.error}: ${data.detail}` : (data.error || 'Server error ' + resp.status);
-                    showError(message);
+                    const message = data.detail
+                        ? `${data.error}: ${data.detail}`
+                        : (data.error || 'Server error ' + resp.status);
+                    const friendlyMessage = message.includes('audible') || message.includes('audio')
+                        ? 'No audible audio was detected. Please upload a clearer recording or speak a bit louder.'
+                        : message;
+                    showError(friendlyMessage);
                     return;
                 }
                 showResults(data, mode);

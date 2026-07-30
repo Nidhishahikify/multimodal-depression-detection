@@ -33,7 +33,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 
-def extract_features(path: Path):
+def extract_features(path: Path, return_reason: bool = False):
     """
     Returns a 240-dim numpy array:
       40 MFCC means + 40 MFCC stds         = 80
@@ -44,7 +44,11 @@ def extract_features(path: Path):
       ZCR mean+std                          =  2
       128 Mel spectrogram means             = 128
       TOTAL                                 = 240
+
+    When return_reason=True, it returns (features, reason) where reason is a
+    friendly message for blank or inaudible audio.
     """
+    reason = None
     try:
         sr    = AUDIO_CONFIG["sample_rate"]
         y, _  = librosa.load(str(path), sr=sr)
@@ -63,9 +67,11 @@ def extract_features(path: Path):
         elif len(y) < target_len:
             y = np.pad(y, (0, target_len - len(y)))
 
-        if y.size == 0 or not np.any(y):
+        rms = float(np.sqrt(np.mean(np.square(y)))) if y.size else 0.0
+        if y.size == 0 or not np.any(y) or rms < 1e-4:
+            reason = "No audible audio detected. Please upload a clearer recording or speak louder."
             log.warning(f"Empty/silent audio after trim: {path.name}")
-            return None
+            return (None, reason) if return_reason else None
 
         hop   = AUDIO_CONFIG["hop_length"]
         n_fft = AUDIO_CONFIG["n_fft"]
@@ -101,11 +107,13 @@ def extract_features(path: Path):
                                               hop_length=hop, n_fft=n_fft)
         feats.extend(np.mean(librosa.power_to_db(mel, ref=np.max), axis=1))
 
-        return np.array(feats, dtype=np.float32)
+        feats_arr = np.array(feats, dtype=np.float32)
+        return (feats_arr, None) if return_reason else feats_arr
 
     except Exception as e:
         log.warning(f"Failed [{path.name}]: {e}")
-        return None
+        reason = "Could not process the audio file. Please try another recording."
+        return (None, reason) if return_reason else None
 
 
 def build_column_names():

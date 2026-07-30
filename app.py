@@ -140,9 +140,9 @@ def predict_audio():
 
     tmp = save_upload(f, ext)
     try:
-        feat = extract_audio(tmp)
+        feat, reason = extract_audio(tmp, return_reason=True)
         if feat is None:
-            return jsonify({"error": "Could not extract features. Install ffmpeg for mp4/m4a support."}), 422
+            return jsonify({"error": reason or "Could not extract features. Install ffmpeg for mp4/m4a support."}), 422
         return jsonify(make_prediction(model, feat))
     finally:
         tmp.unlink(missing_ok=True)
@@ -187,9 +187,11 @@ def predict_fusion():
     i_tmp = save_upload(request.files["image"], i_ext)
 
     try:
-        a_feat = extract_audio(a_tmp)
+        a_feat, a_reason = extract_audio(a_tmp, return_reason=True)
         i_feat, reason = extract_image(i_tmp)
-        if a_feat is None or i_feat is None:
+        if a_feat is None:
+            return jsonify({"error": a_reason or "Could not extract audio features."}), 422
+        if i_feat is None:
             return jsonify({"error": "Feature extraction failed", "detail": reason or "Unknown image processing error"}), 422
 
         p_a = float(a_pipe.predict_proba(a_feat.reshape(1, -1))[0][1])
