@@ -1051,7 +1051,11 @@
                 const resp = await fetch(url, { method: 'POST', body: fd, signal: controller.signal });
                 clearTimeout(timer);
                 const data = await resp.json();
-                if (!resp.ok) { showError(data.error || 'Server error ' + resp.status); return; }
+                if (!resp.ok) {
+                    const message = data.detail ? `${data.error}: ${data.detail}` : (data.error || 'Server error ' + resp.status);
+                    showError(message);
+                    return;
+                }
                 showResults(data, mode);
             } catch (e) {
                 if (e.name === 'AbortError') {

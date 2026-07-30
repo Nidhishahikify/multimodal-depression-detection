@@ -21,7 +21,7 @@ from config import (
     FLASK_CONFIG, FUSION_WEIGHTS,
 )
 from scripts.extract_audio_features import extract_features as extract_audio
-from scripts.extract_image_features import extract_features as extract_image
+from scripts.extract_image_features import extract_features_with_reason as extract_image
 
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
@@ -162,9 +162,9 @@ def predict_image():
 
     tmp = save_upload(f, ext)
     try:
-        feat = extract_image(tmp)
+        feat, reason = extract_image(tmp)
         if feat is None:
-            return jsonify({"error": "Could not extract features from image"}), 422
+            return jsonify({"error": "Could not extract features from image", "detail": reason or "Unknown image processing error"}), 422
         return jsonify(make_prediction(model, feat))
     finally:
         tmp.unlink(missing_ok=True)
@@ -188,9 +188,9 @@ def predict_fusion():
 
     try:
         a_feat = extract_audio(a_tmp)
-        i_feat = extract_image(i_tmp)
+        i_feat, reason = extract_image(i_tmp)
         if a_feat is None or i_feat is None:
-            return jsonify({"error": "Feature extraction failed"}), 422
+            return jsonify({"error": "Feature extraction failed", "detail": reason or "Unknown image processing error"}), 422
 
         p_a = float(a_pipe.predict_proba(a_feat.reshape(1, -1))[0][1])
         p_i = float(i_pipe.predict_proba(i_feat.reshape(1, -1))[0][1])

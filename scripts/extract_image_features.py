@@ -57,13 +57,32 @@ def _crop_to_face(img: np.ndarray):
     """
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     faces = _FACE_CASCADE.detectMultiScale(
-        gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60)
+        gray,
+        scaleFactor=1.1,
+        minNeighbors=4,
+        minSize=(40, 40),
     )
+
+    if len(faces) == 0:
+        # Fallback for slightly rotated or cropped faces that the default cascade misses.
+        gray_equal = cv2.equalizeHist(gray)
+        faces = _FACE_CASCADE.detectMultiScale(
+            gray_equal,
+            scaleFactor=1.08,
+            minNeighbors=3,
+            minSize=(30, 30),
+        )
+
     if len(faces) == 0:
         return None
 
     # Largest detected face by area (in case of multiple faces in frame)
     x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
+
+    # Reject very tiny detections that are likely false positives or screenshot artifacts.
+    img_h, img_w = img.shape[:2]
+    if w < img_w * 0.12 or h < img_h * 0.12:
+        return None
 
     # Add ~20% margin around the face box so we don't cut off chin/forehead
     m = int(0.2 * w)
@@ -73,29 +92,28 @@ def _crop_to_face(img: np.ndarray):
     return img[y0:y1, x0:x1]
 
 
-def extract_features(path: Path):
+def extract_features_with_reason(path: Path):
     """
-    Returns feature vector:
-      HOG descriptor      ~1764 values  (shape/edges)
-      LBP histogram         256 values  (texture)
-      HSV color histogram    96 values  (color)
-      Region stats           24 values  (6 zones x 4 stats)
-      TOTAL               ~2140 values
+    Returns (feature_vector, reason).
 
-    Returns None (and logs why) if the image can't be read OR if no face
-    is detected in it. No-face images are intentionally NOT analyzed.
+    feature_vector is None when the image cannot be processed.
+    reason explains why it failed (for example unreadable file, no face detected,
+    or unexpected processing error).
     """
     try:
         img = cv2.imread(str(path))
         if img is None:
-            raise ValueError("Cannot read image")
+            reason = "Could not read the image file"
+            log.info(f"Unreadable image [{path.name}]")
+            return None, reason
 
         face = _crop_to_face(img)
         if face is None:
-            log.info(f"No face detected, skipping [{path.name}]")
-            return None
+            reason = "No clear face was detected. Please upload a photo with a visible face."
+            log.info(f"No clear face detected, skipping [{path.name}]")
+            return None, reason
 
-        img  = cv2.resize(face, IMAGE_CONFIG["target_size"])
+        img = cv2.resize(face, IMAGE_CONFIG["target_size"])
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         # HOG - shape and edge structure
@@ -115,7 +133,7 @@ def extract_features(path: Path):
         lbp_hist = lbp_hist.astype(np.float32)
 
         # HSV color histogram
-        hsv   = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         color = []
         for ch, (lo, hi) in enumerate([(0, 180), (0, 256), (0, 256)]):
             h = cv2.calcHist([hsv], [ch], None, [32], [lo, hi])
@@ -125,12 +143,12 @@ def extract_features(path: Path):
         # Region stats - 6 face zones
         h, w = gray.shape
         zones = [
-            gray[:h//3,    :],               # upper (forehead/brow)
-            gray[h//3:2*h//3, :],            # middle (eyes/nose)
-            gray[2*h//3:,  :],               # lower (mouth/chin)
-            gray[:, :w//2],                  # left half
-            gray[:, w//2:],                  # right half
-            gray[h//4:3*h//4, w//4:3*w//4], # centre crop
+            gray[:h // 3, :],
+            gray[h // 3:2 * h // 3, :],
+            gray[2 * h // 3:, :],
+            gray[:, :w // 2],
+            gray[:, w // 2:],
+            gray[h // 4:3 * h // 4, w // 4:3 * w // 4],
         ]
         region_feats = []
         for z in zones:
@@ -142,11 +160,18 @@ def extract_features(path: Path):
             ]
         region_feats = np.array(region_feats, dtype=np.float32)
 
-        return np.concatenate([hog_feat, lbp_hist, color, region_feats])
+        return np.concatenate([hog_feat, lbp_hist, color, region_feats]), None
 
     except Exception as e:
+        reason = f"Feature extraction failed: {e}"
         log.warning(f"Failed [{path.name}]: {e}")
-        return None
+        return None, reason
+
+
+def extract_features(path: Path):
+    """Backward-compatible wrapper that returns only the feature vector."""
+    feat, _ = extract_features_with_reason(path)
+    return feat
 
 
 def extract_split(dep_dir: Path, nondep_dir: Path,
