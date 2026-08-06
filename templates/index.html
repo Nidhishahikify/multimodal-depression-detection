@@ -510,10 +510,135 @@
             margin-top: 20px;
         }
 
+        .metric-grid.two-col {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
         @media (max-width: 500px) {
             .metric-grid {
                 grid-template-columns: 1fr 1fr;
             }
+        }
+
+        /* ── Result card header row (label + tiny details icon) ── */
+        .result-card-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .result-card-top .card-label {
+            margin-bottom: 0;
+        }
+
+        /* ── View details trigger (fusion only) — small and easy to overlook on purpose ── */
+        .btn-details {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            padding: 0;
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid var(--muted);
+            border-radius: 50%;
+            color: var(--muted);
+            font-family: var(--font-head);
+            font-size: 11px;
+            font-style: italic;
+            font-weight: 700;
+            line-height: 1;
+            cursor: pointer;
+            opacity: 0.85;
+            transition: all 0.2s;
+            -webkit-appearance: none;
+            appearance: none;
+            flex-shrink: 0;
+        }
+
+        .btn-details:hover {
+            opacity: 1;
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* ── Fusion confidence modal ── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            align-items: center;
+            justify-content: center;
+            background: rgba(4, 8, 12, 0.72);
+            backdrop-filter: blur(6px);
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
+        .modal-overlay.visible {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-box {
+            position: relative;
+            width: 90%;
+            max-width: 360px;
+            background: var(--card);
+            border: 1px solid rgba(0, 212, 255, 0.35);
+            border-radius: 16px;
+            padding: 30px 26px 26px;
+            box-shadow: 0 0 50px rgba(0, 212, 255, 0.14), 0 20px 60px rgba(0, 0, 0, 0.5);
+            transform: translateY(18px) scale(0.96);
+            transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .modal-overlay.visible .modal-box {
+            transform: translateY(0) scale(1);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 14px;
+            right: 16px;
+            background: none;
+            border: none;
+            color: var(--muted);
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: var(--accent);
+        }
+
+        .modal-label {
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 12px;
+        }
+
+        .modal-confidence {
+            font-family: var(--font-head);
+            font-size: 40px;
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 0 24px rgba(0, 212, 255, 0.35);
+            margin-bottom: 16px;
+        }
+
+        .modal-note {
+            font-size: 12px;
+            line-height: 1.7;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+            padding-top: 14px;
         }
 
         .metric-box {
@@ -763,19 +888,20 @@
         <div id="results">
             <div class="sep"></div>
             <div class="card">
-                <div class="card-label">Analysis Result</div>
+                <div class="result-card-top">
+                    <div class="card-label">Analysis Result</div>
+                    <!-- Fusion-only: confidence lives behind this, deliberately understated -->
+                    <button type="button" class="btn-details" id="viewDetailsBtn" style="display:none"
+                        onclick="openDetailsModal()" title="View Details" aria-label="View Details">i</button>
+                </div>
 
                 <div class="result-header">
                     <div class="result-badge" id="resultBadge"></div>
                     <div class="result-label" id="resultLabel"></div>
                 </div>
 
-                <!-- Confidence metrics -->
-                <div class="metric-grid">
-                    <div class="metric-box">
-                        <div class="metric-val" id="metConfidence">—</div>
-                        <div class="metric-key">CONFIDENCE</div>
-                    </div>
+                <!-- Prediction + modality only. Confidence intentionally not shown here. -->
+                <div class="metric-grid two-col">
                     <div class="metric-box">
                         <div class="metric-val" id="metPrediction">—</div>
                         <div class="metric-key">PREDICTION</div>
@@ -783,24 +909,6 @@
                     <div class="metric-box">
                         <div class="metric-val" id="metModality">—</div>
                         <div class="metric-key">MODALITY</div>
-                    </div>
-                </div>
-
-                <!-- Fusion modality breakdown (shown only for fusion) -->
-                <div id="fusionBreakdown" style="display:none">
-                    <div class="sep"></div>
-                    <div class="card-label">Modality Breakdown</div>
-                    <div class="modality-row">
-                        <div class="mod-box">
-                            <div class="mod-icon">🎙️</div>
-                            <div class="mod-score" id="modAudioScore" style="color:var(--accent)">—</div>
-                            <div class="mod-label">Audio Score</div>
-                        </div>
-                        <div class="mod-box">
-                            <div class="mod-icon">🖼️</div>
-                            <div class="mod-score" id="modImageScore" style="color:var(--accent)">—</div>
-                            <div class="mod-label">Image Score</div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -812,6 +920,19 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- Fusion confidence detail modal -->
+    <div class="modal-overlay" id="detailsOverlay" onclick="closeDetailsIfOutside(event)">
+        <div class="modal-box">
+            <button type="button" class="modal-close" onclick="closeDetailsModal()">&times;</button>
+            <div class="modal-label">Fusion Confidence</div>
+            <div class="modal-confidence" id="modalConfidenceVal">—</div>
+            <div class="modal-note">
+                The confidence score represents the certainty of the multimodal fusion model and is intended for
+                technical reference. It is not a medical diagnosis.
+            </div>
+        </div>
     </div>
 
     <script>
@@ -865,17 +986,14 @@
         // ── Health check ──────────────────────────────────────────────────────────
         async function checkHealth() {
             try {
-                const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), 60000);
-                const r = await fetch(API + '/health', { signal: controller.signal });
-                clearTimeout(timer);
+                const r = await fetch(API + '/health');
                 const d = await r.json();
                 const dot = document.getElementById('statusDot');
                 const text = document.getElementById('statusText');
                 if (d.status === 'ok') {
                     dot.style.background = 'var(--accent2)';
                     dot.style.boxShadow = '0 0 8px var(--accent2)';
-                    const loaded = [d.audio_model_loaded && 'Audio', d.image_model_loaded && 'Image', d.fusion_model_loaded && 'Fusion'].filter(Boolean);
+                    const loaded = [d.audio_model && 'Audio', d.image_model && 'Image', d.fusion_model && 'Fusion'].filter(Boolean);
                     text.textContent = loaded.length ? loaded.join(' + ') + ' Ready' : 'API Online';
                 } else { setOffline(); }
             } catch { setOffline(); }
@@ -886,10 +1004,6 @@
             dot.style.boxShadow = '0 0 8px var(--danger)';
             document.getElementById('statusText').textContent = 'API Offline';
         }
-        // Show warming up state immediately, then resolve to online/offline
-        document.getElementById('statusText').textContent = 'Warming up...';
-        document.getElementById('statusDot').style.background = 'var(--warn)';
-        document.getElementById('statusDot').style.boxShadow = '0 0 8px var(--warn)';
         checkHealth();
 
         // ── Mic recording ─────────────────────────────────────────────────────────
@@ -1045,35 +1159,22 @@
 
             setLoading(true);
             try {
-                // 90-second timeout — handles Render free-tier cold start (wake-up takes ~50s)
-                const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), 90000);
-                const resp = await fetch(url, { method: 'POST', body: fd, signal: controller.signal });
-                clearTimeout(timer);
+                const resp = await fetch(url, { method: 'POST', body: fd });
                 const data = await resp.json();
-                if (!resp.ok) {
-                    const message = data.detail
-                        ? `${data.error}: ${data.detail}`
-                        : (data.error || 'Server error ' + resp.status);
-                    const friendlyMessage = message.includes('audible') || message.includes('audio')
-                        ? 'No audible audio was detected. Please upload a clearer recording or speak a bit louder.'
-                        : message;
-                    showError(friendlyMessage);
-                    return;
-                }
+                if (!resp.ok) { showError(data.error || 'Server error ' + resp.status); return; }
                 showResults(data, mode);
             } catch (e) {
-                if (e.name === 'AbortError') {
-                    showError('Request timed out. The server may be waking up — please try again in 10 seconds.');
-                } else {
-                    showError('Could not reach the server. Please check your connection and try again.');
-                }
+                showError('Could not reach API. Make sure the Flask server is running:\n  python app.py');
             } finally {
                 setLoading(false);
             }
         }
 
         // ── Render results ────────────────────────────────────────────────────────
+        // Confidence is intentionally not rendered on the main screen for any mode.
+        // For fusion, it's kept in memory and only shown inside the details modal.
+        let lastFusionConfidence = null;
+
         function showResults(d, mode) {
             const isDepressed = d.prediction === 1;
 
@@ -1084,18 +1185,17 @@
             document.getElementById('resultLabel').textContent =
                 isDepressed ? 'Signs of depression detected' : 'No significant depression indicators';
 
-            document.getElementById('metConfidence').textContent = (d.confidence * 100).toFixed(1) + '%';
             document.getElementById('metPrediction').textContent = d.label;
-            document.getElementById('metModality').textContent = mode.toUpperCase();
+            document.getElementById('metModality').textContent =
+                mode === 'fusion' ? 'IMAGE + AUDIO' : mode.toUpperCase();
 
-            // Fusion breakdown
-            const fb = document.getElementById('fusionBreakdown');
-            if (mode === 'fusion' && d.modality_scores) {
-                fb.style.display = 'block';
-                document.getElementById('modAudioScore').textContent = (d.modality_scores.audio * 100).toFixed(1) + '%';
-                document.getElementById('modImageScore').textContent = (d.modality_scores.image * 100).toFixed(1) + '%';
+            const detailsBtn = document.getElementById('viewDetailsBtn');
+            if (mode === 'fusion') {
+                lastFusionConfidence = d.confidence;
+                detailsBtn.style.display = 'flex';
             } else {
-                fb.style.display = 'none';
+                lastFusionConfidence = null;
+                detailsBtn.style.display = 'none';
             }
 
             document.getElementById('results').style.display = 'block';
@@ -1107,7 +1207,30 @@
             const r = document.getElementById('results');
             r.style.display = 'none';
             r.classList.remove('visible');
+            closeDetailsModal();
         }
+
+        // ── Fusion confidence details modal ─────────────────────────────────────────
+        function openDetailsModal() {
+            if (lastFusionConfidence === null) return;
+            document.getElementById('modalConfidenceVal').textContent =
+                (lastFusionConfidence * 100).toFixed(1) + '%';
+            document.getElementById('detailsOverlay').classList.add('visible');
+        }
+
+        function closeDetailsModal() {
+            document.getElementById('detailsOverlay').classList.remove('visible');
+        }
+
+        function closeDetailsIfOutside(e) {
+            // Only close when the click landed on the dimmed backdrop itself,
+            // not on the modal box content.
+            if (e.target.id === 'detailsOverlay') closeDetailsModal();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeDetailsModal();
+        });
 
         function showError(msg) {
             const el = document.getElementById('errorBox');
