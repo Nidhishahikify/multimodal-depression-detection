@@ -48,12 +48,16 @@ _FACE_CASCADE = cv2.CascadeClassifier(
 
 def _crop_to_face(img: np.ndarray):
     """
-    Detects the largest face in the image and crops to it (with a small margin).
+    Detects faces in the image. Returns the cropped face when exactly ONE face
+    is found, or None in all other cases:
+      - no face detected
+      - more than one face detected (multi-person image is rejected)
+      - detected region is too small (likely a false positive)
 
-    Returns the cropped face image, or None if no face is detected.
     Face detection is REQUIRED — images with no detectable face (screenshots,
-    blank frames, non-face photos, etc.) must NOT be analyzed, so callers
-    should skip the image entirely when this returns None.
+    blank frames, non-face photos, etc.) must NOT be analyzed.
+    Multi-face images are also rejected because there is no reliable way to
+    determine which person to analyse.
     """
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     faces = _FACE_CASCADE.detectMultiScale(
@@ -74,22 +78,26 @@ def _crop_to_face(img: np.ndarray):
         )
 
     if len(faces) == 0:
-        return None
+        return None, "no_face"
 
-    # Largest detected face by area (in case of multiple faces in frame)
-    x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
-
-    # Reject very tiny detections that are likely false positives or screenshot artifacts.
+    # Filter out very tiny detections (likely false positives)
     img_h, img_w = img.shape[:2]
-    if w < img_w * 0.12 or h < img_h * 0.12:
-        return None
+    faces = [f for f in faces if f[2] >= img_w * 0.12 and f[3] >= img_h * 0.12]
+
+    if len(faces) == 0:
+        return None, "no_face"
+
+    if len(faces) > 1:
+        return None, "multiple_faces"
+
+    x, y, w, h = faces[0]
 
     # Add ~20% margin around the face box so we don't cut off chin/forehead
     m = int(0.2 * w)
     x0, y0 = max(x - m, 0), max(y - m, 0)
     x1, y1 = min(x + w + m, img.shape[1]), min(y + h + m, img.shape[0])
 
-    return img[y0:y1, x0:x1]
+    return img[y0:y1, x0:x1], "ok"
 
 
 def extract_features_with_reason(path: Path):
@@ -107,10 +115,13 @@ def extract_features_with_reason(path: Path):
             log.info(f"Unreadable image [{path.name}]")
             return None, reason
 
-        face = _crop_to_face(img)
+        face, face_status = _crop_to_face(img)
         if face is None:
-            reason = "No clear face was detected. Please upload a photo with a visible face."
-            log.info(f"No clear face detected, skipping [{path.name}]")
+            if face_status == "multiple_faces":
+                reason = "Multiple faces detected. Please upload a photo with only one face."
+            else:
+                reason = "No clear face was detected. Please upload a photo with a visible face."
+            log.info(f"Face detection failed [{face_status}]: {path.name}")
             return None, reason
 
         img = cv2.resize(face, IMAGE_CONFIG["target_size"])

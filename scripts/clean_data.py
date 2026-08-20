@@ -5,11 +5,18 @@ What this does:
 1. Reads your single dataset folder
 2. Shuffles files randomly
 3. Splits 80% -> train, 20% -> test  (per class, so balance is kept)
-4. Cleans each file (audio: resample/normalize, image: resize)
+4. Cleans each file (audio: resample/normalize, image: face-crop + resize)
 5. Saves to clean_dataset/train/ and clean_dataset/test/
 
 Audio: 600 dep + 600 nondep -> 480 train + 120 test each
 Image: 2000 dep + 2000 nondep -> 1600 train + 400 test each
+
+NOTE: Image cleaning now uses the SAME face-detection + crop logic as
+scripts/extract_image_features.py (used for live predictions in app.py).
+This keeps training preprocessing and live-inference preprocessing identical:
+raw image -> detect single face -> crop with margin -> resize once.
+Images with no detectable face (or more than one face) are skipped here too,
+matching the rule used at inference time.
 """
 import sys
 import random
@@ -34,6 +41,10 @@ from config import (
     AUDIO_CONFIG, IMAGE_CONFIG,
     TRAIN_RATIO, RANDOM_SEED, LOGS_DIR,
 )
+# Reuse the EXACT same face-detection/crop function used at live-prediction
+# time, so clean_dataset/ images are processed identically to how app.py
+# processes an uploaded image.
+from scripts.extract_image_features import _crop_to_face
 
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
@@ -69,11 +80,25 @@ def clean_audio(src: Path, dst: Path) -> bool:
 
 # ── Image cleaning ────────────────────────────────────────────────────────────
 def clean_image(src: Path, dst: Path) -> bool:
+    """
+    Detects a single face in the RAW image, crops it (with margin), then
+    resizes to IMAGE_CONFIG["target_size"] — same pipeline as live prediction
+    in extract_image_features.extract_features_with_reason().
+
+    Images with no detectable face, or more than one face, are skipped (not
+    saved to clean_dataset), matching the rule used at inference time.
+    """
     try:
         img = cv2.imread(str(src))
         if img is None:
             raise ValueError("Cannot read image")
-        img = cv2.resize(img, IMAGE_CONFIG["target_size"])
+
+        face, status = _crop_to_face(img)
+        if face is None:
+            log.info(f"Image skip {src.name}: {status}")
+            return False
+
+        img = cv2.resize(face, IMAGE_CONFIG["target_size"])
         dst.parent.mkdir(parents=True, exist_ok=True)
         cv2.imwrite(str(dst.with_suffix(".jpg")), img,
                     [cv2.IMWRITE_JPEG_QUALITY, 95])
@@ -112,6 +137,8 @@ def process_class(src_dir: Path, train_dst: Path, test_dst: Path,
     for f in tqdm(test_files, desc=f"  Test/{label}", leave=False):
         if clean_fn(f, test_dst  / f.name): ok += 1
         else: skip += 1
+
+    print(f"    -> OK: {ok}  Skipped: {skip}")
 
     return len(train_files), len(test_files)
 

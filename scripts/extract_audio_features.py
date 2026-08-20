@@ -53,25 +53,28 @@ def extract_features(path: Path, return_reason: bool = False):
         sr    = AUDIO_CONFIG["sample_rate"]
         y, _  = librosa.load(str(path), sr=sr)
 
-        # Trim leading/trailing silence. Dataset clips tend to be clean speech
-        # segments; a live mic recording usually has silence before/after the
-        # person talks, which otherwise skews the MFCC/mel statistics.
+        # ── Step 1: reject completely empty/silent files ────────────────────────
+        if y.size == 0 or not np.any(y):
+            reason = "The audio file is blank or silent. Please upload a real recording."
+            log.warning(f"Blank/all-zero audio: {path.name}")
+            return (None, reason) if return_reason else None
+
+        # ── Step 2: trim leading/trailing silence ───────────────────────────────
         y, _ = librosa.effects.trim(y, top_db=25)
 
-        # Enforce a fixed clip length so every sample (train, test, and live
-        # recordings) is compared over the same time window. AUDIO_CONFIG had
-        # a "duration" setting that was never actually applied - this applies it.
+        # ── Step 3: silence check after trim ───────────────────────────────────
+        rms = float(np.sqrt(np.mean(np.square(y)))) if y.size else 0.0
+        if y.size == 0 or rms < 1e-4:
+            reason = "No audible audio detected. Please upload a clearer recording or speak louder."
+            log.warning(f"Silent/inaudible audio after trim: {path.name}")
+            return (None, reason) if return_reason else None
+
+        # ── Step 5: enforce fixed clip length for consistent feature extraction ─
         target_len = int(AUDIO_CONFIG["duration"] * sr)
         if len(y) > target_len:
             y = y[:target_len]
         elif len(y) < target_len:
             y = np.pad(y, (0, target_len - len(y)))
-
-        rms = float(np.sqrt(np.mean(np.square(y)))) if y.size else 0.0
-        if y.size == 0 or not np.any(y) or rms < 1e-4:
-            reason = "No audible audio detected. Please upload a clearer recording or speak louder."
-            log.warning(f"Empty/silent audio after trim: {path.name}")
-            return (None, reason) if return_reason else None
 
         hop   = AUDIO_CONFIG["hop_length"]
         n_fft = AUDIO_CONFIG["n_fft"]
