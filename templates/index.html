@@ -288,95 +288,6 @@
             }
         }
 
-        /* ── Record / Camera trigger buttons ── */
-        .record-controls {
-            display: flex;
-            justify-content: center;
-            margin-top: 14px;
-        }
-
-        .btn-secondary {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 18px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text);
-            font-family: var(--font-mono);
-            font-size: 12px;
-            letter-spacing: 0.5px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn-secondary:hover {
-            border-color: var(--accent);
-            color: var(--accent);
-        }
-
-        .btn-secondary.recording {
-            border-color: var(--danger);
-            color: var(--danger);
-            background: rgba(255, 77, 109, 0.08);
-        }
-
-        .rec-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--danger);
-            box-shadow: 0 0 6px var(--danger);
-            animation: pulse 1s infinite;
-            display: none;
-        }
-
-        .btn-secondary.recording .rec-dot {
-            display: inline-block;
-        }
-
-        .rec-timer {
-            display: none;
-            text-align: center;
-            font-size: 12px;
-            color: var(--muted);
-            margin-top: 8px;
-            letter-spacing: 1px;
-        }
-
-        .rec-timer.active {
-            display: block;
-        }
-
-        /* ── Camera panel ── */
-        .camera-panel {
-            display: none;
-            margin-top: 16px;
-        }
-
-        .camera-panel.active {
-            display: block;
-        }
-
-        .camera-panel video {
-            width: 100%;
-            max-height: 320px;
-            object-fit: cover;
-            border-radius: 10px;
-            border: 1px solid var(--border);
-            background: #000;
-            transform: scaleX(-1);
-            /* mirror, feels natural for a face cam */
-        }
-
-        .camera-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 12px;
-            justify-content: center;
-        }
-
         /* ── Analyse button ── */
         .btn-analyse {
             width: 100%;
@@ -781,13 +692,6 @@
                     <div class="upload-hint">Supports WAV, MP3, MP4, FLAC, OGG, M4A &nbsp;·&nbsp; max 50MB</div>
                     <div class="file-name" id="audioFileName"></div>
                 </div>
-                <div class="record-controls">
-                    <button type="button" class="btn-secondary" id="audioRecBtn"
-                        onclick="toggleAudioRecording('audioFile','audioZone','audioFileName','audioRecBtn','audioRecTimer')">
-                        <span class="rec-dot"></span><span>🎤 Record Voice</span>
-                    </button>
-                </div>
-                <div class="rec-timer" id="audioRecTimer">00:00</div>
             </div>
             <button class="btn-analyse" id="btnAudio" onclick="predict('audio')">Analyse Voice</button>
         </div>
@@ -804,20 +708,6 @@
                     <div class="upload-title">Drop facial image here</div>
                     <div class="upload-hint">Supports JPG, PNG, BMP, WEBP &nbsp;·&nbsp; max 50MB</div>
                     <div class="file-name" id="imageFileName"></div>
-                </div>
-                <div class="record-controls">
-                    <button type="button" class="btn-secondary" onclick="openCamera('imageCameraPanel','imageVideo')">📷
-                        Use Camera</button>
-                </div>
-                <div class="camera-panel" id="imageCameraPanel">
-                    <video id="imageVideo" autoplay playsinline muted></video>
-                    <div class="camera-actions">
-                        <button type="button" class="btn-secondary"
-                            onclick="capturePhoto('imageFile','imageZone','imageFileName','imageCameraPanel','imageVideo')">✓
-                            Capture</button>
-                        <button type="button" class="btn-secondary"
-                            onclick="closeCamera('imageCameraPanel','imageVideo')">Cancel</button>
-                    </div>
                 </div>
             </div>
             <button class="btn-analyse" id="btnImage" onclick="predict('image')">Analyse Image</button>
@@ -838,13 +728,6 @@
                             <div class="upload-hint">WAV / MP3 / MP4 / M4A</div>
                             <div class="file-name" id="fusAudioName"></div>
                         </div>
-                        <div class="record-controls">
-                            <button type="button" class="btn-secondary" id="fusAudioRecBtn"
-                                onclick="toggleAudioRecording('fusAudio','fusAudioZone','fusAudioName','fusAudioRecBtn','fusAudioRecTimer')">
-                                <span class="rec-dot"></span><span>🎤 Record</span>
-                            </button>
-                        </div>
-                        <div class="rec-timer" id="fusAudioRecTimer">00:00</div>
                     </div>
                     <div>
                         <div class="upload-zone" id="fusImageZone" ondragover="onDrag(event,'fusImageZone')"
@@ -855,20 +738,6 @@
                             <div class="upload-title">Facial image</div>
                             <div class="upload-hint">JPG / PNG / WEBP</div>
                             <div class="file-name" id="fusImageName"></div>
-                        </div>
-                        <div class="record-controls">
-                            <button type="button" class="btn-secondary"
-                                onclick="openCamera('fusImageCameraPanel','fusImageVideo')">📷 Camera</button>
-                        </div>
-                        <div class="camera-panel" id="fusImageCameraPanel">
-                            <video id="fusImageVideo" autoplay playsinline muted></video>
-                            <div class="camera-actions">
-                                <button type="button" class="btn-secondary"
-                                    onclick="capturePhoto('fusImage','fusImageZone','fusImageName','fusImageCameraPanel','fusImageVideo')">✓
-                                    Capture</button>
-                                <button type="button" class="btn-secondary"
-                                    onclick="closeCamera('fusImageCameraPanel','fusImageVideo')">Cancel</button>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -1006,131 +875,6 @@
         }
         checkHealth();
 
-        // ── Mic recording ─────────────────────────────────────────────────────────
-        let mediaRecorder = null;
-        let recordedChunks = [];
-        let recTimerInterval = null;
-        let recSeconds = 0;
-        let activeMicStream = null;
-
-        async function toggleAudioRecording(inputId, zoneId, nameId, btnId, timerId) {
-            const btn = document.getElementById(btnId);
-
-            // If currently recording -> stop
-            if (btn.classList.contains('recording')) {
-                if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-                return;
-            }
-
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                showError('Microphone recording is not supported in this browser.');
-                return;
-            }
-
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    }
-                });
-                activeMicStream = stream;
-                recordedChunks = [];
-                mediaRecorder = new MediaRecorder(stream);
-
-                mediaRecorder.ondataavailable = (ev) => {
-                    if (ev.data && ev.data.size > 0) recordedChunks.push(ev.data);
-                };
-
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-                    const file = new File([blob], 'recording-' + Date.now() + '.webm', { type: 'audio/webm' });
-                    const input = document.getElementById(inputId);
-                    const dt = new DataTransfer();
-                    dt.items.add(file);
-                    input.files = dt.files;
-                    input.dispatchEvent(new Event('change'));
-
-                    stream.getTracks().forEach(t => t.stop());
-                    activeMicStream = null;
-
-                    clearInterval(recTimerInterval);
-                    btn.classList.remove('recording');
-                    btn.querySelector('span:last-child').textContent = '🎤 Record Voice';
-                    document.getElementById(timerId).classList.remove('active');
-                };
-
-                mediaRecorder.start();
-                btn.classList.add('recording');
-                btn.querySelector('span:last-child').textContent = 'Stop Recording';
-
-                recSeconds = 0;
-                const timerEl = document.getElementById(timerId);
-                timerEl.classList.add('active');
-                timerEl.textContent = '00:00';
-                recTimerInterval = setInterval(() => {
-                    recSeconds++;
-                    const m = String(Math.floor(recSeconds / 60)).padStart(2, '0');
-                    const s = String(recSeconds % 60).padStart(2, '0');
-                    timerEl.textContent = m + ':' + s;
-                }, 1000);
-
-            } catch (err) {
-                showError('Microphone access was denied or is unavailable.');
-            }
-        }
-
-        // ── Camera capture ────────────────────────────────────────────────────────
-        async function openCamera(panelId, videoId) {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                showError('Camera access is not supported in this browser.');
-                return;
-            }
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-                const video = document.getElementById(videoId);
-                video.srcObject = stream;
-                video.dataset.streamActive = 'true';
-                document.getElementById(panelId).classList.add('active');
-            } catch (err) {
-                showError('Camera access was denied or is unavailable.');
-            }
-        }
-
-        function capturePhoto(inputId, zoneId, nameId, panelId, videoId) {
-            const video = document.getElementById(videoId);
-            if (!video.srcObject) return;
-
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            // Un-mirror when saving so the captured file looks natural, not flipped
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            canvas.toBlob((blob) => {
-                const file = new File([blob], 'capture-' + Date.now() + '.jpg', { type: 'image/jpeg' });
-                const input = document.getElementById(inputId);
-                const dt = new DataTransfer();
-                dt.items.add(file);
-                input.files = dt.files;
-                input.dispatchEvent(new Event('change'));
-                closeCamera(panelId, videoId);
-            }, 'image/jpeg', 0.92);
-        }
-
-        function closeCamera(panelId, videoId) {
-            const video = document.getElementById(videoId);
-            if (video.srcObject) {
-                video.srcObject.getTracks().forEach(t => t.stop());
-                video.srcObject = null;
-            }
-            document.getElementById(panelId).classList.remove('active');
-        }
-
         // ── Predict ───────────────────────────────────────────────────────────────
         async function predict(mode) {
             hideResults(); showError('');
@@ -1140,12 +884,12 @@
 
             if (mode === 'audio') {
                 const f = document.getElementById('audioFile').files[0];
-                if (!f) { showError('Please upload or record an audio file first.'); return; }
+                if (!f) { showError('Please upload an audio file first.'); return; }
                 fd.append('file', f);
                 url = API + '/predict/audio';
             } else if (mode === 'image') {
                 const f = document.getElementById('imageFile').files[0];
-                if (!f) { showError('Please upload or capture an image first.'); return; }
+                if (!f) { showError('Please upload an image first.'); return; }
                 fd.append('file', f);
                 url = API + '/predict/image';
             } else {

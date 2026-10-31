@@ -1,0 +1,172 @@
+{
+  "audio": {
+    "threshold": 0.5,
+    "score_type": "probability",
+    "calibration": {
+      "type": "platt",
+      "a": 33.658157,
+      "b": -16.725738
+    },
+    "strategy": "fbeta",
+    "strategy_params": {
+      "beta": 2.0,
+      "min_recall": 0.85,
+      "min_specificity": 0.5
+    },
+    "n_train": 960,
+    "cv_folds": 5,
+    "grouped_cv": false,
+    "oof_roc_auc": 1.0,
+    "oof_metrics_at_threshold": {
+      "threshold": 0.5,
+      "accuracy": 0.999,
+      "balanced_accuracy": 0.999,
+      "precision": 0.9979,
+      "recall": 1.0,
+      "specificity": 0.9979,
+      "f1": 0.999,
+      "f2": 0.9996,
+      "confusion_matrix": {
+        "tn": 479,
+        "fp": 1,
+        "fn": 0,
+        "tp": 480
+      }
+    },
+    "calibration_check": {
+      "brier_raw": 0.0048,
+      "brier_platt": 0.001,
+      "ece_raw": 0.0304,
+      "ece_platt": 0.0018,
+      "platt_applied": true
+    },
+    "test_metrics": {
+      "n_test": 240,
+      "roc_auc": 0.9999,
+      "average_precision": 0.9999,
+      "at_chosen_threshold": {
+        "threshold": 0.5,
+        "accuracy": 0.9917,
+        "balanced_accuracy": 0.9917,
+        "precision": 0.9836,
+        "recall": 1.0,
+        "specificity": 0.9833,
+        "f1": 0.9917,
+        "f2": 0.9967,
+        "confusion_matrix": {
+          "tn": 118,
+          "fp": 2,
+          "fn": 0,
+          "tp": 120
+        }
+      },
+      "at_default_0.5": {
+        "threshold": 0.5,
+        "accuracy": 0.9917,
+        "balanced_accuracy": 0.9917,
+        "precision": 0.9836,
+        "recall": 1.0,
+        "specificity": 0.9833,
+        "f1": 0.9917,
+        "f2": 0.9967,
+        "confusion_matrix": {
+          "tn": 118,
+          "fp": 2,
+          "fn": 0,
+          "tp": 120
+        }
+      },
+      "brier": 0.0062
+    }
+  },
+  "image": {
+    "threshold": 0.3775,
+    "score_type": "probability",
+    "calibration": null,
+    "strategy": "fbeta",
+    "strategy_params": {
+      "beta": 2.0,
+      "min_recall": 0.85,
+      "min_specificity": 0.5
+    },
+    "n_train": 2422,
+    "cv_folds": 5,
+    "grouped_cv": false,
+    "oof_roc_auc": 0.7826,
+    "oof_metrics_at_threshold": {
+      "threshold": 0.3775,
+      "accuracy": 0.6953,
+      "balanced_accuracy": 0.7001,
+      "precision": 0.6333,
+      "recall": 0.8898,
+      "specificity": 0.5105,
+      "f1": 0.74,
+      "f2": 0.8231,
+      "confusion_matrix": {
+        "tn": 634,
+        "fp": 608,
+        "fn": 130,
+        "tp": 1050
+      }
+    },
+    "calibration_check": {
+      "brier_raw": 0.1939,
+      "brier_platt": 0.19,
+      "ece_raw": 0.0661,
+      "ece_platt": 0.0306,
+      "platt_applied": false
+    },
+    "test_metrics": {
+      "n_test": 822,
+      "roc_auc": 0.9586,
+      "average_precision": 0.9615,
+      "at_chosen_threshold": {
+        "threshold": 0.3775,
+        "accuracy": 0.8285,
+        "balanced_accuracy": 0.8187,
+        "precision": 0.7639,
+        "recall": 0.9794,
+        "specificity": 0.658,
+        "f1": 0.8583,
+        "f2": 0.9271,
+        "confusion_matrix": {
+          "tn": 254,
+          "fp": 132,
+          "fn": 9,
+          "tp": 427
+        }
+      },
+      "at_default_0.5": {
+        "threshold": 0.5,
+        "accuracy": 0.882,
+        "balanced_accuracy": 0.8794,
+        "precision": 0.8645,
+        "recall": 0.922,
+        "specificity": 0.8368,
+        "f1": 0.8923,
+        "f2": 0.9099,
+        "confusion_matrix": {
+          "tn": 323,
+          "fp": 63,
+          "fn": 34,
+          "tp": 402
+        }
+      },
+      "brier": 0.1106
+    }
+  },
+  "fusion": {
+    "method": "threshold-normalised weighted average (each modality threshold -> 0.5)",
+    "weights": {
+      "audio": 0.5,
+      "image": 0.5
+    },
+    "threshold": 0.5,
+    "validated_on_paired_data": false,
+    "note": "Audio and image datasets are from different people, so fusion cannot be validated on matched pairs; treat it as an unvalidated late-fusion rule."
+  },
+  "meta": {
+    "generated": "2026-10-31T20:04:38",
+    "disclaimer": "Experimental screening prototype; not a diagnostic tool."
+  }
+}
